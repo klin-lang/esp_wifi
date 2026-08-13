@@ -7,8 +7,17 @@ fn main() {
     return
   }
   e = wifi.sta_connect("test", "pass")
+  if e != wifi.err_ok() {
+    return
+  }
   e = wifi.sta_wait_ip(1000)
+  if e != wifi.err_ok() {
+    return
+  }
   let ip = wifi.sta_ip_u32()
-  let _v = wifi.version() + cast(i32, ip) * 0 + e * 0
+  if ip == 0 {
+    return
+  }
   wifi.sta_log_ip()
+  let _v = wifi.version()
 }
