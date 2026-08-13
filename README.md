@@ -50,7 +50,7 @@ import "github/klin-lang/esp_wifi" wifi
 
 @[cexport, codename("klin_app_main")]
 fn app() {
-  let e = wifi.sta_init()
+  let mut e = wifi.sta_init()
   if e != wifi.err_ok() {
     return
   }
