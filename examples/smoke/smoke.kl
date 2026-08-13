@@ -9,5 +9,6 @@ fn main() {
   e = wifi.sta_connect("test", "pass")
   e = wifi.sta_wait_ip(1000)
   let ip = wifi.sta_ip_u32()
-  let _v = wifi.version() + (ip as i32) * 0 + e * 0
+  let _v = wifi.version() + cast(i32, ip) * 0 + e * 0
+  wifi.sta_log_ip()
 }
