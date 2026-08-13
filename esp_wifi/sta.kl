@@ -1,0 +1,68 @@
+/// ESP-IDF Wi‑Fi STA — thin Klin surface over `sta_idf.c`.
+/// Radio silicon + IDF own heap/NVS/event loop; Klin does not hide those costs.
+/// Not part of `machine_esp` (MMIO Pin…Adc+Rmt only).
+module esp_wifi
+
+@[link("sta_idf.c")]
+@[cinclude("sta_idf.h")]
+@[cimport, codename("klin_wifi_sta_init")]
+fn klin_wifi_sta_init(): i32
+
+@[cimport, codename("klin_wifi_sta_connect")]
+fn klin_wifi_sta_connect(ssid: str, pass: str): i32
+
+@[cimport, codename("klin_wifi_sta_wait_ip")]
+fn klin_wifi_sta_wait_ip(timeout_ms: i32): i32
+
+@[cimport, codename("klin_wifi_sta_ip_u32")]
+fn klin_wifi_sta_ip_u32(): u32
+
+@[cimport, codename("klin_wifi_sta_disconnect")]
+fn klin_wifi_sta_disconnect(): i32
+
+@[cimport, codename("klin_wifi_sta_stop")]
+fn klin_wifi_sta_stop(): i32
+
+@[cimport, codename("klin_wifi_sta_log_ip")]
+fn klin_wifi_sta_log_ip()
+
+/// `ESP_OK` (0).
+pub fn err_ok(): i32 {
+    return 0
+}
+
+/// NVS + netif + default event loop + `esp_wifi_init` + STA mode.
+/// Returns IDF `esp_err_t` as `i32` (0 = OK).
+pub fn sta_init(): i32 {
+    return klin_wifi_sta_init()
+}
+
+/// Set STA config from C strings, `esp_wifi_start` + connect.
+/// Returns IDF `esp_err_t` as `i32`.
+pub fn sta_connect(ssid: str, pass: str): i32 {
+    return klin_wifi_sta_connect(ssid, pass)
+}
+
+/// Block until GOT_IP or `timeout_ms` (use `-1` for forever).
+/// Returns 0 on success; non-zero on fail/timeout.
+pub fn sta_wait_ip(timeout_ms: i32): i32 {
+    return klin_wifi_sta_wait_ip(timeout_ms)
+}
+
+/// IPv4 as host-order `u32` after successful `sta_wait_ip` (else 0).
+pub fn sta_ip_u32(): u32 {
+    return klin_wifi_sta_ip_u32()
+}
+
+pub fn sta_disconnect(): i32 {
+    return klin_wifi_sta_disconnect()
+}
+
+pub fn sta_stop(): i32 {
+    return klin_wifi_sta_stop()
+}
+
+/// Debug print of `sta_ip_u32` via C `printf` (UART0 under IDF).
+pub fn sta_log_ip() {
+    klin_wifi_sta_log_ip()
+}

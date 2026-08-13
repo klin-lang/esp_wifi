@@ -1,0 +1,5 @@
+module esp_wifi
+
+pub fn version(): i32 {
+    return 1
+}

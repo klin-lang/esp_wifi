@@ -1,0 +1,13 @@
+// emit-c smoke against stubs/ (no ESP-IDF).
+import "../../esp_wifi" wifi
+
+fn main() {
+  let e = wifi.sta_init()
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.sta_connect("test", "pass")
+  e = wifi.sta_wait_ip(1000)
+  let ip = wifi.sta_ip_u32()
+  let _v = wifi.version() + (ip as i32) * 0 + e * 0
+}

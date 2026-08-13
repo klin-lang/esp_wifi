@@ -1,0 +1,32 @@
+// ESP32-S3 STA connect via klin-lang/esp_wifi (ESP-IDF).
+// Edit SSID / PASS below, then: make emit && make build && make flash
+import "../../esp_wifi" wifi
+
+@[cexport, codename("klin_app_main")]
+fn app_main_klin() {
+  let e = wifi.sta_init()
+  if e != wifi.err_ok() {
+    return
+  }
+  // *** edit credentials ***
+  e = wifi.sta_connect("myssid", "mypass")
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.sta_wait_ip(30000)
+  if e != wifi.err_ok() {
+    return
+  }
+  wifi.sta_log_ip()
+  // Keep the default IDF task alive.
+  while true {
+    let mut i: i32 = 0
+    while i < 20000000 {
+      i = i + 1
+    }
+  }
+}
+
+fn main() {
+  app_main_klin()
+}
