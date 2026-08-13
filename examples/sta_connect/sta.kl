@@ -13,11 +13,15 @@ fn app_main_klin() {
   if e != wifi.err_ok() {
     return
   }
+  e = wifi.sta_wait_connected(15000)
+  if e != wifi.err_ok() {
+    return
+  }
   e = wifi.sta_wait_ip(30000)
   if e != wifi.err_ok() {
     return
   }
-  wifi.sta_log_ip()
+  wifi.sta_log_ip_info()
   // Keep the default IDF task alive.
   while true {
     let mut i: i32 = 0

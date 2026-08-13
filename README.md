@@ -12,19 +12,25 @@ C engine = **ESP-IDF** (`esp_wifi`, netif, event loop, NVS). Klin is a thin
 FFI client (`@[link("sta_idf.c")]` + `@[cimport]`). IDF heap / NVS / the default
 event loop are **IDF contracts**, not hidden Klin allocation.
 
-## Status (`@v0.1.0`)
+**IP mode:** default = **DHCP (dynamic)**. `sta_set_static_ip` is optional and
+disables DHCP on the STA netif only. Wi‑Fi + Ethernet dual-netif failover is
+**not** in this package (separate track).
+
+## Status (`@v0.1.1`)
 
 | API | Notes |
 |---|---|
 | `sta_init` | NVS + netif + default event loop + `esp_wifi_init` + STA mode |
+| `sta_set_static_ip` / `ipv4` / `sta_set_hostname` | Optional; DHCP off when static set |
 | `sta_connect(ssid, pass)` | `wifi_config_t` fill + start + connect |
-| `sta_wait_ip(timeout_ms)` | Explicit poll/wait on GOT_IP (`-1` = forever) |
-| `sta_ip_u32` | IPv4 as `u32` after wait success |
+| `sta_wait_connected` / `sta_connected` | Assoc (`WIFI_EVENT_STA_CONNECTED`) |
+| `sta_wait_ip(timeout_ms)` | GOT_IP (`-1` = forever); DHCP or static |
+| `sta_ip_u32` / `sta_gateway_u32` / `sta_netmask_u32` | After GOT_IP |
 | `sta_disconnect` / `sta_stop` | Thin IDF calls |
-| `sta_log_ip` | Debug `printf` of stored IPv4 |
-| SoftAP / BLE / sockets / HTTP / TLS | **Out of scope** |
+| `sta_log_ip` / `sta_log_ip_info` | Debug `printf` |
+| SoftAP / BLE / sockets / HTTP / TLS / dual Wi‑Fi+ETH | **Out of scope** |
 
-`version()` → `1`.
+`version()` → `2` (`@v0.1.1`).
 
 ## Requirements
 
@@ -43,7 +49,7 @@ examples/sta_connect/ # ESP32-S3 idf.py demo (edit SSID/pass)
 examples/smoke/       # emit-c against C stubs (no IDF)
 ```
 
-## Usage
+## Usage (DHCP — default / dynamic)
 
 ```klin
 import "github/klin-lang/esp_wifi" wifi
@@ -58,17 +64,49 @@ fn app() {
   if e != wifi.err_ok() {
     return
   }
+  e = wifi.sta_wait_connected(15000)
+  if e != wifi.err_ok() {
+    return
+  }
   e = wifi.sta_wait_ip(20000)
   if e != wifi.err_ok() {
     return
   }
-  let ip = wifi.sta_ip_u32()
-  // use ip; sockets/HTTP are separate (not this package)
+  wifi.sta_log_ip_info()
+}
+```
+
+## Usage (static IP)
+
+```klin
+import "github/klin-lang/esp_wifi" wifi
+
+@[cexport, codename("klin_app_main")]
+fn app() {
+  let _h = wifi.sta_set_hostname("klin-wifi")
+  let _s = wifi.sta_set_static_ip(
+    wifi.ipv4(192, 168, 1, 50),
+    wifi.ipv4(192, 168, 1, 1),
+    wifi.ipv4(255, 255, 255, 0)
+  )
+  let mut e = wifi.sta_init()
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.sta_connect("myssid", "mypass")
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.sta_wait_ip(5000)
+  if e != wifi.err_ok() {
+    return
+  }
+  wifi.sta_log_ip_info()
 }
 ```
 
 ```sh
-klin get github/klin-lang/esp_wifi@v0.1.0
+klin get github/klin-lang/esp_wifi@v0.1.1
 ```
 
 Local / in-repo:
@@ -92,16 +130,19 @@ Target: **esp32s3** (any S3 board with antenna; Waveshare ESP32-S3-Pico works).
 Board pack [`waveshare_esp32_s3_pico`](https://github.com/klin-lang/waveshare_esp32_s3_pico)
 stays pin/WS2812-only — no radio API there.
 
+Sibling wired path: [`esp_eth`](https://github.com/klin-lang/esp_eth) (same DHCP/static idea; no dual failover yet).
+
 ## Contract (prime rule)
 
 - No Klin GC / hidden heap — buffers for SSID/pass are C strings you pass in.
 - No hidden reconnect policy beyond the small, documented retry in `sta_idf.c`
   (max 5 `esp_wifi_connect` attempts while waiting for IP).
 - Errors are `i32` (`esp_err_t`); check them.
-- BLE, SoftAP, LwIP sockets, TLS: later / other packages.
+- BLE, SoftAP, LwIP sockets, TLS, Wi‑Fi+ETH bonding: later / other packages.
 
 ## Links
 
 - Klin issue: https://github.com/klin-lang/klin/blob/main/issues/101-esp-wifi-idf.md
+- Ethernet sibling: https://github.com/klin-lang/esp_eth
 - Chip MMIO: https://github.com/klin-lang/machine_esp ([099](https://github.com/klin-lang/klin/blob/main/issues/099-machine-esp-esp32-s3.md))
 - Pattern (RTOS FFI client): https://github.com/klin-lang/klin_freertos
