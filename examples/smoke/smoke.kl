@@ -2,6 +2,12 @@
 import "../../esp_wifi" wifi
 
 fn main() {
+  let _h = wifi.sta_set_hostname("klin-wifi")
+  let _s = wifi.sta_set_static_ip(
+    wifi.ipv4(192, 168, 1, 50),
+    wifi.ipv4(192, 168, 1, 1),
+    wifi.ipv4(255, 255, 255, 0)
+  )
   let mut e = wifi.sta_init()
   if e != wifi.err_ok() {
     return
@@ -10,14 +16,27 @@ fn main() {
   if e != wifi.err_ok() {
     return
   }
+  e = wifi.sta_wait_connected(1000)
+  if e != wifi.err_ok() {
+    return
+  }
+  if !wifi.sta_connected() {
+    return
+  }
   e = wifi.sta_wait_ip(1000)
   if e != wifi.err_ok() {
     return
   }
-  let ip = wifi.sta_ip_u32()
-  if ip == 0 {
+  if wifi.sta_ip_u32() == 0 {
+    return
+  }
+  if wifi.sta_gateway_u32() == 0 {
+    return
+  }
+  if wifi.sta_netmask_u32() == 0 {
     return
   }
   wifi.sta_log_ip()
+  wifi.sta_log_ip_info()
   let _v = wifi.version()
 }

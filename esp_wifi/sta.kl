@@ -1,21 +1,40 @@
 /// ESP-IDF Wi‑Fi STA — thin Klin surface over `sta_idf.c`.
 /// Radio silicon + IDF own heap/NVS/event loop; Klin does not hide those costs.
 /// Not part of `machine_esp` (MMIO Pin…Adc+Rmt only).
+/// Default IP mode = DHCP (dynamic); `sta_set_static_ip` is optional opt-in.
 module esp_wifi
 
 @[link("sta_idf.c")]
 @[cinclude("sta_idf.h")]
+@[cimport, codename("klin_wifi_sta_set_static_ip")]
+fn klin_wifi_sta_set_static_ip(ip: u32, gw: u32, netmask: u32): i32
+
+@[cimport, codename("klin_wifi_sta_set_hostname")]
+fn klin_wifi_sta_set_hostname(name: str): i32
+
 @[cimport, codename("klin_wifi_sta_init")]
 fn klin_wifi_sta_init(): i32
 
 @[cimport, codename("klin_wifi_sta_connect")]
 fn klin_wifi_sta_connect(ssid: str, pass: str): i32
 
+@[cimport, codename("klin_wifi_sta_wait_connected")]
+fn klin_wifi_sta_wait_connected(timeout_ms: i32): i32
+
+@[cimport, codename("klin_wifi_sta_connected")]
+fn klin_wifi_sta_connected(): i32
+
 @[cimport, codename("klin_wifi_sta_wait_ip")]
 fn klin_wifi_sta_wait_ip(timeout_ms: i32): i32
 
 @[cimport, codename("klin_wifi_sta_ip_u32")]
 fn klin_wifi_sta_ip_u32(): u32
+
+@[cimport, codename("klin_wifi_sta_gateway_u32")]
+fn klin_wifi_sta_gateway_u32(): u32
+
+@[cimport, codename("klin_wifi_sta_netmask_u32")]
+fn klin_wifi_sta_netmask_u32(): u32
 
 @[cimport, codename("klin_wifi_sta_disconnect")]
 fn klin_wifi_sta_disconnect(): i32
@@ -26,13 +45,32 @@ fn klin_wifi_sta_stop(): i32
 @[cimport, codename("klin_wifi_sta_log_ip")]
 fn klin_wifi_sta_log_ip()
 
+@[cimport, codename("klin_wifi_sta_log_ip_info")]
+fn klin_wifi_sta_log_ip_info()
+
 /// `ESP_OK` (0).
 pub fn err_ok(): i32 {
     return 0
 }
 
+/// Pack `a.b.c.d` into lwIP `u32` order (ESP little-endian host).
+pub fn ipv4(a: u32, b: u32, c: u32, d: u32): u32 {
+    return a | (b << 8) | (c << 16) | (d << 24)
+}
+
+/// Optional static IPv4. Prefer before/after `sta_init`, before `sta_connect`.
+/// Disables DHCP on STA netif. Pass `0, 0, 0` to clear (DHCP again).
+pub fn sta_set_static_ip(ip: u32, gw: u32, netmask: u32): i32 {
+    return klin_wifi_sta_set_static_ip(ip, gw, netmask)
+}
+
+/// Optional STA netif hostname (DHCP client id / mDNS).
+pub fn sta_set_hostname(name: str): i32 {
+    return klin_wifi_sta_set_hostname(name)
+}
+
 /// NVS + netif + default event loop + `esp_wifi_init` + STA mode.
-/// Returns IDF `esp_err_t` as `i32` (0 = OK).
+/// Returns IDF `esp_err_t` as `i32` (0 = OK). Default IP = DHCP.
 pub fn sta_init(): i32 {
     return klin_wifi_sta_init()
 }
@@ -43,15 +81,32 @@ pub fn sta_connect(ssid: str, pass: str): i32 {
     return klin_wifi_sta_connect(ssid, pass)
 }
 
+/// Block until associated (`WIFI_EVENT_STA_CONNECTED`) or timeout.
+pub fn sta_wait_connected(timeout_ms: i32): i32 {
+    return klin_wifi_sta_wait_connected(timeout_ms)
+}
+
+/// True after assoc event (cleared on disconnect).
+pub fn sta_connected(): bool {
+    return klin_wifi_sta_connected() != 0
+}
+
 /// Block until GOT_IP or `timeout_ms` (use `-1` for forever).
-/// Returns 0 on success; non-zero on fail/timeout.
+/// Works for both DHCP (dynamic) and static IP.
 pub fn sta_wait_ip(timeout_ms: i32): i32 {
     return klin_wifi_sta_wait_ip(timeout_ms)
 }
 
-/// IPv4 as host-order `u32` after successful `sta_wait_ip` (else 0).
 pub fn sta_ip_u32(): u32 {
     return klin_wifi_sta_ip_u32()
+}
+
+pub fn sta_gateway_u32(): u32 {
+    return klin_wifi_sta_gateway_u32()
+}
+
+pub fn sta_netmask_u32(): u32 {
+    return klin_wifi_sta_netmask_u32()
 }
 
 pub fn sta_disconnect(): i32 {
@@ -65,4 +120,9 @@ pub fn sta_stop(): i32 {
 /// Debug print of `sta_ip_u32` via C `printf` (UART0 under IDF).
 pub fn sta_log_ip() {
     klin_wifi_sta_log_ip()
+}
+
+/// Debug print of ip / gateway / netmask after `sta_wait_ip`.
+pub fn sta_log_ip_info() {
+    klin_wifi_sta_log_ip_info()
 }
