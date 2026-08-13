@@ -2,7 +2,7 @@
 import "../../esp_wifi" wifi
 
 fn main() {
-  let e = wifi.sta_init()
+  let mut e = wifi.sta_init()
   if e != wifi.err_ok() {
     return
   }
