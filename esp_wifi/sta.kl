@@ -2,6 +2,7 @@
 /// Radio silicon + IDF own heap/NVS/event loop; Klin does not hide those costs.
 /// Not part of `machine_esp` (MMIO Pin…Adc+Rmt only).
 /// Default IP mode = DHCP (dynamic); `sta_set_static_ip` is optional opt-in.
+/// SoftAP: see `ap.kl`. Do not mix `sta_*` + `ap_*` in one binary on this tag.
 module esp_wifi
 
 @[link("sta_idf.c")]

@@ -1,11 +1,11 @@
 # Klin emit must run before configure (see ../Makefile `emit` target).
-set(KLIN_C "${CMAKE_SOURCE_DIR}/out/sta.c")
+set(KLIN_C "${CMAKE_SOURCE_DIR}/out/ap.c")
 set(STA_C "${CMAKE_SOURCE_DIR}/../../esp_wifi/sta_idf.c")
 set(AP_C "${CMAKE_SOURCE_DIR}/../../esp_wifi/ap_idf.c")
 
 if(NOT EXISTS "${KLIN_C}")
     message(FATAL_ERROR
-        "Missing ${KLIN_C}. From examples/sta_connect run: make emit KLIN=...")
+        "Missing ${KLIN_C}. From examples/softap run: make emit KLIN=...")
 endif()
 
 idf_component_register(

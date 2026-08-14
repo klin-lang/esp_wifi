@@ -38,5 +38,25 @@ fn main() {
   }
   wifi.sta_log_ip()
   wifi.sta_log_ip_info()
+
+  // SoftAP surface (do not mix with STA on hardware in one binary @v0.2.0).
+  e = wifi.ap_init()
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.ap_start("klin-ap", "klinpass1", 6)
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.ap_wait_started(1000)
+  if e != wifi.err_ok() {
+    return
+  }
+  if !wifi.ap_started() {
+    return
+  }
+  let _n = wifi.ap_station_num()
+  wifi.ap_log_ip()
+  wifi.ap_log_ip_info()
   let _v = wifi.version()
 }

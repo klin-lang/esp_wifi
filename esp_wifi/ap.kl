@@ -1,0 +1,101 @@
+/// ESP-IDF Wi‑Fi SoftAP — thin Klin surface over `ap_idf.c`.
+/// SoftAP-only (`WIFI_MODE_AP`). Do not mix with `sta_*` in one binary on this
+/// tag — APSTA / dual netif is a later track ([104] W1 vs N1).
+/// Default AP IP = IDF SoftAP DHCP server (typically 192.168.4.1).
+module esp_wifi
+
+@[link("ap_idf.c")]
+@[cinclude("ap_idf.h")]
+@[cimport, codename("klin_wifi_ap_set_ip")]
+fn klin_wifi_ap_set_ip(ip: u32, gw: u32, netmask: u32): i32
+
+@[cimport, codename("klin_wifi_ap_init")]
+fn klin_wifi_ap_init(): i32
+
+@[cimport, codename("klin_wifi_ap_start")]
+fn klin_wifi_ap_start(ssid: str, pass: str, channel: i32): i32
+
+@[cimport, codename("klin_wifi_ap_wait_started")]
+fn klin_wifi_ap_wait_started(timeout_ms: i32): i32
+
+@[cimport, codename("klin_wifi_ap_started")]
+fn klin_wifi_ap_started(): i32
+
+@[cimport, codename("klin_wifi_ap_ip_u32")]
+fn klin_wifi_ap_ip_u32(): u32
+
+@[cimport, codename("klin_wifi_ap_gateway_u32")]
+fn klin_wifi_ap_gateway_u32(): u32
+
+@[cimport, codename("klin_wifi_ap_netmask_u32")]
+fn klin_wifi_ap_netmask_u32(): u32
+
+@[cimport, codename("klin_wifi_ap_station_num")]
+fn klin_wifi_ap_station_num(): i32
+
+@[cimport, codename("klin_wifi_ap_stop")]
+fn klin_wifi_ap_stop(): i32
+
+@[cimport, codename("klin_wifi_ap_log_ip")]
+fn klin_wifi_ap_log_ip()
+
+@[cimport, codename("klin_wifi_ap_log_ip_info")]
+fn klin_wifi_ap_log_ip_info()
+
+/// Optional SoftAP IPv4. Prefer before/after `ap_init`, before `ap_start`.
+/// Restarts DHCPS on the AP netif. Pass `0, 0, 0` to clear (IDF default IP).
+pub fn ap_set_ip(ip: u32, gw: u32, netmask: u32): i32 {
+    return klin_wifi_ap_set_ip(ip, gw, netmask)
+}
+
+/// NVS + netif + default event loop + `esp_wifi_init` + SoftAP mode.
+/// Returns IDF `esp_err_t` as `i32` (0 = OK).
+pub fn ap_init(): i32 {
+    return klin_wifi_ap_init()
+}
+
+/// Start SoftAP: SSID, password, channel `1`…`13`.
+/// Empty password → open; otherwise WPA2-PSK (password length ≥ 8).
+/// `max_connection` = 4 (fixed in C). Returns IDF `esp_err_t` as `i32`.
+pub fn ap_start(ssid: str, pass: str, channel: i32): i32 {
+    return klin_wifi_ap_start(ssid, pass, channel)
+}
+
+/// Block until SoftAP started (`WIFI_EVENT_AP_START`) or timeout.
+pub fn ap_wait_started(timeout_ms: i32): i32 {
+    return klin_wifi_ap_wait_started(timeout_ms)
+}
+
+/// True after AP_START (cleared on AP_STOP).
+pub fn ap_started(): bool {
+    return klin_wifi_ap_started() != 0
+}
+
+pub fn ap_ip_u32(): u32 {
+    return klin_wifi_ap_ip_u32()
+}
+
+pub fn ap_gateway_u32(): u32 {
+    return klin_wifi_ap_gateway_u32()
+}
+
+pub fn ap_netmask_u32(): u32 {
+    return klin_wifi_ap_netmask_u32()
+}
+
+/// Number of associated stations (0 if not started).
+pub fn ap_station_num(): i32 {
+    return klin_wifi_ap_station_num()
+}
+
+pub fn ap_stop(): i32 {
+    return klin_wifi_ap_stop()
+}
+
+pub fn ap_log_ip() {
+    klin_wifi_ap_log_ip()
+}
+
+pub fn ap_log_ip_info() {
+    klin_wifi_ap_log_ip_info()
+}
