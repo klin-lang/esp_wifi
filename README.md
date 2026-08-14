@@ -1,7 +1,7 @@
 # esp_wifi
 
 Thin **ESP-IDF Wi‑Fi** bindings for [Klin](https://github.com/klin-lang/klin)
-(**STA** + **SoftAP**).
+(**STA** + **SoftAP** + **scan**).
 
 The radio is in the **silicon**; this package does **not** belong in
 [`machine_esp`](https://github.com/klin-lang/machine_esp) (MMIO Pin…Adc+Rmt MVP).
@@ -20,7 +20,7 @@ Klin allocation.
 `ap_set_ip` is optional. **Do not** call `sta_*` and `ap_*` in the same binary
 on this tag (APSTA / dual → later under [104] N1).
 
-## Status (`@v0.2.0`)
+## Status (`@v0.3.0`)
 
 ### STA
 
@@ -47,10 +47,20 @@ on this tag (APSTA / dual → later under [104] N1).
 | `ap_station_num` | Associated STA count |
 | `ap_stop` / `ap_log_ip` / `ap_log_ip_info` | Thin / debug |
 
-Scan / RSSI / BLE / sockets / HTTP / TLS / APSTA / dual Wi‑Fi+ETH → **out of
+### Scan (W2)
+
+| API | Notes |
+|---|---|
+| `scan_start(timeout_ms)` | After `sta_init`; blocking SCAN_DONE; keeps up to **16** APs in C |
+| `scan_max` / `scan_count` | Cap / stored count |
+| `scan_ssid(i, buf, max)` | Copy SSID into **caller** buffer |
+| `scan_rssi` / `scan_channel` / `scan_authmode` | Per-index fields |
+| `scan_log` | Debug `printf` of all rows |
+
+RSSI-after-assoc / BLE / sockets / HTTP / TLS / APSTA / dual Wi‑Fi+ETH → **out of
 scope** ([104](https://github.com/klin-lang/klin/blob/main/issues/104-later-tracks-esp-network.md)).
 
-`version()` → `3` (`@v0.2.0`).
+`version()` → `4` (`@v0.3.0`).
 
 ## Requirements
 
@@ -64,11 +74,13 @@ scope** ([104](https://github.com/klin-lang/klin/blob/main/issues/104-later-trac
 esp_wifi/
   version.kl
   sta.kl              # STA Klin API
-  sta_idf.c / .h
+  sta_idf.c / .h      # STA + scan C
+  scan.kl             # Scan Klin API
   ap.kl               # SoftAP Klin API
   ap_idf.c / .h
 examples/sta_connect/ # ESP32-S3 STA idf.py demo
 examples/softap/      # ESP32-S3 SoftAP idf.py demo
+examples/scan/        # ESP32-S3 scan idf.py demo
 examples/smoke/       # emit-c (no IDF)
 ```
 
@@ -123,8 +135,29 @@ fn app() {
 }
 ```
 
+## Usage — Scan
+
+```klin
+import "github/klin-lang/esp_wifi" wifi
+
+@[cexport, codename("klin_app_main")]
+fn app() {
+  let mut e = wifi.sta_init()
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.scan_start(15000)
+  if e != wifi.err_ok() {
+    return
+  }
+  wifi.scan_log()
+  let mut ssid: [33]u8
+  let _n = wifi.scan_ssid(0, cast(*mut u8, &ssid[0]), 33)
+}
+```
+
 ```sh
-klin get github/klin-lang/esp_wifi@v0.2.0
+klin get github/klin-lang/esp_wifi@v0.3.0
 ```
 
 Local / in-repo:
@@ -136,7 +169,7 @@ import "../../esp_wifi" wifi
 ## Example (hardware)
 
 ```sh
-cd examples/sta_connect   # or examples/softap
+cd examples/sta_connect   # or examples/softap / examples/scan
 # edit credentials / SSID in the .kl file
 . $IDF_PATH/export.sh
 make emit KLIN=/path/to/klin/bin/klin.dart
@@ -152,11 +185,13 @@ Sibling: [`esp_eth`](https://github.com/klin-lang/esp_eth).
 
 ## Contract (prime rule)
 
-- No Klin GC / hidden heap — SSID/pass are C strings you pass in.
+- No Klin GC / hidden heap — SSID/pass are C strings you pass in; scan SSID
+  goes into a **caller** buffer (`scan_ssid`).
 - SoftAP `max_connection` = **4** (fixed in `ap_idf.c`, documented).
+- Scan keeps at most **16** APs in a fixed C table (`scan_max`, documented).
 - STA reconnect retry: max 5 in `sta_idf.c` (documented).
 - Errors are `i32` (`esp_err_t`); check them.
-- Scan, RSSI, LwIP sockets, TLS, APSTA: later / other packages.
+- Post-assoc RSSI, LwIP sockets, TLS, APSTA: later / other packages.
 
 ## Changelog
 
@@ -165,6 +200,7 @@ Sibling: [`esp_eth`](https://github.com/klin-lang/esp_eth).
 | `@v0.1.0` | STA + DHCP |
 | `@v0.1.1` | STA static IP / hostname / gw+mask / assoc wait |
 | `@v0.2.0` | SoftAP (`ap_*`) — [104] W1 |
+| `@v0.3.0` | Scan (`scan_*`) — [104] W2 |
 
 ## Links
 

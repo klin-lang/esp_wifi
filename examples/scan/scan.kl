@@ -1,0 +1,35 @@
+// ESP32-S3 Wi‑Fi scan via klin-lang/esp_wifi (ESP-IDF).
+// make emit && make build && make flash — UART lists nearby SSIDs.
+import "../../esp_wifi" wifi
+
+@[cexport, codename("klin_app_main")]
+fn app_main_klin() {
+  let mut e = wifi.sta_init()
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.scan_start(15000)
+  if e != wifi.err_ok() {
+    return
+  }
+  wifi.scan_log()
+  let n = wifi.scan_count()
+  let mut i: i32 = 0
+  while i < n {
+    let mut ssid: [33]u8
+    let _nl = wifi.scan_ssid(i, cast(*mut u8, &ssid[0]), 33)
+    let _r = wifi.scan_rssi(i)
+    let _ch = wifi.scan_channel(i)
+    i = i + 1
+  }
+  while true {
+    let mut j: i32 = 0
+    while j < 20000000 {
+      j = j + 1
+    }
+  }
+}
+
+fn main() {
+  app_main_klin()
+}
