@@ -1,0 +1,34 @@
+// ESP32-S3 SoftAP via klin-lang/esp_wifi (ESP-IDF).
+// Edit SSID / PASS / CHANNEL below, then: make emit && make build && make flash
+import "../../esp_wifi" wifi
+
+@[cexport, codename("klin_app_main")]
+fn app_main_klin() {
+  let mut e = wifi.ap_init()
+  if e != wifi.err_ok() {
+    return
+  }
+  // *** edit SoftAP credentials ***
+  // empty pass = open; otherwise WPA2 (password length ≥ 8)
+  e = wifi.ap_start("klin-ap", "klinpass1", 6)
+  if e != wifi.err_ok() {
+    return
+  }
+  e = wifi.ap_wait_started(5000)
+  if e != wifi.err_ok() {
+    return
+  }
+  wifi.ap_log_ip_info()
+  // Keep the default IDF task alive; poll station count occasionally.
+  while true {
+    let _n = wifi.ap_station_num()
+    let mut i: i32 = 0
+    while i < 20000000 {
+      i = i + 1
+    }
+  }
+}
+
+fn main() {
+  app_main_klin()
+}
