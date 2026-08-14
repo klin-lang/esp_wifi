@@ -52,6 +52,32 @@ void klin_wifi_sta_log_ip(void);
 /** Print ip / gateway / netmask. */
 void klin_wifi_sta_log_ip_info(void);
 
+/** Max APs kept after `klin_wifi_scan_start` (fixed; documented). */
+int klin_wifi_scan_max(void);
+
+/**
+ * Blocking active scan (STA mode). Requires `klin_wifi_sta_init` first.
+ * Copies up to `klin_wifi_scan_max` APs into a fixed C table (no Klin heap).
+ * timeout_ms for SCAN_DONE (-1 = forever). Returns esp_err_t as int.
+ */
+int klin_wifi_scan_start(int timeout_ms);
+
+/** Number of APs stored after last successful scan (0..scan_max). */
+int klin_wifi_scan_count(void);
+
+int klin_wifi_scan_rssi(int index);
+int klin_wifi_scan_channel(int index);
+int klin_wifi_scan_authmode(int index);
+
+/**
+ * Copy SSID at index into caller buffer (NUL-terminated).
+ * Returns byte length written (excluding NUL), or esp_err_t on error.
+ */
+int klin_wifi_scan_ssid(int index, char *out, int max_len);
+
+/** Debug printf of all stored scan rows. */
+void klin_wifi_scan_log(void);
+
 #ifdef __cplusplus
 }
 #endif

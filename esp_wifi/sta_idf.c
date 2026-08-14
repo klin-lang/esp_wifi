@@ -17,7 +17,17 @@
 #define KLIN_WIFI_GOT_IP_BIT BIT0
 #define KLIN_WIFI_FAIL_BIT   BIT1
 #define KLIN_WIFI_ASSOC_BIT  BIT2
+#define KLIN_WIFI_SCAN_DONE_BIT BIT3
 #define KLIN_WIFI_HOSTNAME_MAX 32
+#define KLIN_WIFI_SCAN_MAX 16
+#define KLIN_WIFI_SSID_MAX 33
+
+typedef struct {
+    char ssid[KLIN_WIFI_SSID_MAX];
+    int8_t rssi;
+    uint8_t channel;
+    uint8_t authmode;
+} klin_wifi_scan_row_t;
 
 static EventGroupHandle_t s_wifi_event_group;
 static esp_netif_t *s_sta_netif;
@@ -27,11 +37,14 @@ static uint32_t s_gw_u32;
 static uint32_t s_mask_u32;
 static int s_inited;
 static int s_associated;
+static int s_want_connect;
 static int s_use_static;
 static uint32_t s_static_ip;
 static uint32_t s_static_gw;
 static uint32_t s_static_mask;
 static char s_hostname[KLIN_WIFI_HOSTNAME_MAX];
+static klin_wifi_scan_row_t s_scan[KLIN_WIFI_SCAN_MAX];
+static int s_scan_count;
 
 static void klin_wifi_fmt_ipv4(char *buf, size_t n, uint32_t a)
 {
@@ -80,7 +93,10 @@ static void klin_wifi_event_handler(void *arg, esp_event_base_t event_base,
 {
     (void)arg;
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
+        /* Only connect when sta_connect asked — scan_start must not assoc. */
+        if (s_want_connect) {
+            esp_wifi_connect();
+        }
     } else if (event_base == WIFI_EVENT &&
                event_id == WIFI_EVENT_STA_CONNECTED) {
         s_associated = 1;
@@ -89,12 +105,16 @@ static void klin_wifi_event_handler(void *arg, esp_event_base_t event_base,
                event_id == WIFI_EVENT_STA_DISCONNECTED) {
         s_associated = 0;
         xEventGroupClearBits(s_wifi_event_group, KLIN_WIFI_ASSOC_BIT);
-        if (s_retry_num < 5) {
+        if (s_want_connect && s_retry_num < 5) {
             esp_wifi_connect();
             s_retry_num++;
-        } else {
+        } else if (s_want_connect) {
             xEventGroupSetBits(s_wifi_event_group, KLIN_WIFI_FAIL_BIT);
         }
+    } else if (event_base == WIFI_EVENT &&
+               event_id == WIFI_EVENT_SCAN_DONE) {
+        (void)event_data;
+        xEventGroupSetBits(s_wifi_event_group, KLIN_WIFI_SCAN_DONE_BIT);
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         s_ip_u32 = (uint32_t)event->ip_info.ip.addr;
@@ -218,7 +238,9 @@ int klin_wifi_sta_init(void)
     s_gw_u32 = 0;
     s_mask_u32 = 0;
     s_associated = 0;
+    s_want_connect = 0;
     s_retry_num = 0;
+    s_scan_count = 0;
     return (int)ESP_OK;
 }
 
@@ -253,6 +275,7 @@ int klin_wifi_sta_connect(const char *ssid, const char *pass)
     s_gw_u32 = 0;
     s_mask_u32 = 0;
     s_associated = 0;
+    s_want_connect = 1;
     xEventGroupClearBits(s_wifi_event_group, KLIN_WIFI_GOT_IP_BIT |
                                                  KLIN_WIFI_FAIL_BIT |
                                                  KLIN_WIFI_ASSOC_BIT);
@@ -263,11 +286,11 @@ int klin_wifi_sta_connect(const char *ssid, const char *pass)
     }
 
     err = esp_wifi_start();
-    if (err != ESP_OK) {
+    if (err != ESP_OK && err != ESP_ERR_WIFI_CONN) {
         return (int)err;
     }
 
-    /* STA_START handler calls esp_wifi_connect(); also connect here if already started. */
+    /* STA_START handler connects when s_want_connect; also connect if already up. */
     err = esp_wifi_connect();
     if (err != ESP_OK && err != ESP_ERR_WIFI_CONN) {
         return (int)err;
@@ -356,6 +379,7 @@ int klin_wifi_sta_disconnect(void)
     if (!s_inited) {
         return (int)ESP_ERR_INVALID_STATE;
     }
+    s_want_connect = 0;
     return (int)esp_wifi_disconnect();
 }
 
@@ -364,6 +388,7 @@ int klin_wifi_sta_stop(void)
     if (!s_inited) {
         return (int)ESP_ERR_INVALID_STATE;
     }
+    s_want_connect = 0;
     return (int)esp_wifi_stop();
 }
 
@@ -383,4 +408,145 @@ void klin_wifi_sta_log_ip_info(void)
     klin_wifi_fmt_ipv4(gw, sizeof(gw), s_gw_u32);
     klin_wifi_fmt_ipv4(mask, sizeof(mask), s_mask_u32);
     printf("klin_wifi: ip %s gw %s mask %s\n", ip, gw, mask);
+}
+
+int klin_wifi_scan_max(void)
+{
+    return KLIN_WIFI_SCAN_MAX;
+}
+
+int klin_wifi_scan_start(int timeout_ms)
+{
+    esp_err_t err;
+    TickType_t ticks;
+    EventBits_t bits;
+    uint16_t ap_num;
+    uint16_t number;
+    wifi_ap_record_t records[KLIN_WIFI_SCAN_MAX];
+    int i;
+
+    if (!s_inited || s_wifi_event_group == NULL) {
+        return (int)ESP_ERR_INVALID_STATE;
+    }
+
+    s_scan_count = 0;
+    xEventGroupClearBits(s_wifi_event_group, KLIN_WIFI_SCAN_DONE_BIT);
+
+    /* Scan needs the STA interface started; do not request association. */
+    err = esp_wifi_start();
+    if (err != ESP_OK && err != ESP_ERR_WIFI_CONN) {
+        return (int)err;
+    }
+
+    err = esp_wifi_scan_start(NULL, false);
+    if (err != ESP_OK) {
+        return (int)err;
+    }
+
+    if (timeout_ms < 0) {
+        ticks = portMAX_DELAY;
+    } else {
+        ticks = pdMS_TO_TICKS((uint32_t)timeout_ms);
+    }
+
+    bits = xEventGroupWaitBits(s_wifi_event_group, KLIN_WIFI_SCAN_DONE_BIT,
+                               pdTRUE, pdFALSE, ticks);
+    if (!(bits & KLIN_WIFI_SCAN_DONE_BIT)) {
+        (void)esp_wifi_scan_stop();
+        (void)esp_wifi_clear_ap_list();
+        return (int)ESP_ERR_TIMEOUT;
+    }
+
+    err = esp_wifi_scan_get_ap_num(&ap_num);
+    if (err != ESP_OK) {
+        (void)esp_wifi_clear_ap_list();
+        return (int)err;
+    }
+
+    number = ap_num;
+    if (number > KLIN_WIFI_SCAN_MAX) {
+        number = KLIN_WIFI_SCAN_MAX;
+    }
+    if (number == 0) {
+        (void)esp_wifi_clear_ap_list();
+        return (int)ESP_OK;
+    }
+
+    memset(records, 0, sizeof(records));
+    err = esp_wifi_scan_get_ap_records(&number, records);
+    if (err != ESP_OK) {
+        (void)esp_wifi_clear_ap_list();
+        return (int)err;
+    }
+
+    for (i = 0; i < (int)number; i++) {
+        memset(&s_scan[i], 0, sizeof(s_scan[i]));
+        strncpy(s_scan[i].ssid, (const char *)records[i].ssid,
+                KLIN_WIFI_SSID_MAX - 1);
+        s_scan[i].rssi = records[i].rssi;
+        s_scan[i].channel = records[i].primary;
+        s_scan[i].authmode = (uint8_t)records[i].authmode;
+    }
+    s_scan_count = (int)number;
+    return (int)ESP_OK;
+}
+
+int klin_wifi_scan_count(void)
+{
+    return s_scan_count;
+}
+
+int klin_wifi_scan_rssi(int index)
+{
+    if (index < 0 || index >= s_scan_count) {
+        return 0;
+    }
+    return (int)s_scan[index].rssi;
+}
+
+int klin_wifi_scan_channel(int index)
+{
+    if (index < 0 || index >= s_scan_count) {
+        return 0;
+    }
+    return (int)s_scan[index].channel;
+}
+
+int klin_wifi_scan_authmode(int index)
+{
+    if (index < 0 || index >= s_scan_count) {
+        return 0;
+    }
+    return (int)s_scan[index].authmode;
+}
+
+int klin_wifi_scan_ssid(int index, char *out, int max_len)
+{
+    int n;
+
+    if (out == NULL || max_len <= 0) {
+        return (int)ESP_ERR_INVALID_ARG;
+    }
+    if (index < 0 || index >= s_scan_count) {
+        out[0] = '\0';
+        return (int)ESP_ERR_INVALID_ARG;
+    }
+
+    n = (int)strlen(s_scan[index].ssid);
+    if (n >= max_len) {
+        n = max_len - 1;
+    }
+    memcpy(out, s_scan[index].ssid, (size_t)n);
+    out[n] = '\0';
+    return n;
+}
+
+void klin_wifi_scan_log(void)
+{
+    int i;
+    for (i = 0; i < s_scan_count; i++) {
+        printf("klin_wifi_scan: [%d] ch=%u rssi=%d auth=%u ssid=%s\n", i,
+               (unsigned)s_scan[i].channel, (int)s_scan[i].rssi,
+               (unsigned)s_scan[i].authmode, s_scan[i].ssid);
+    }
 }

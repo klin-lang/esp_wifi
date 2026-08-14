@@ -12,6 +12,23 @@ fn main() {
   if e != wifi.err_ok() {
     return
   }
+
+  // Scan (W2) — after sta_init; SSID into caller buffer.
+  e = wifi.scan_start(1000)
+  if e != wifi.err_ok() {
+    return
+  }
+  let _max = wifi.scan_max()
+  if wifi.scan_count() < 1 {
+    return
+  }
+  let mut ssid: [33]u8
+  let _nl = wifi.scan_ssid(0, cast(*mut u8, &ssid[0]), 33)
+  let _r = wifi.scan_rssi(0)
+  let _ch = wifi.scan_channel(0)
+  let _am = wifi.scan_authmode(0)
+  wifi.scan_log()
+
   e = wifi.sta_connect("test", "pass")
   if e != wifi.err_ok() {
     return
@@ -39,7 +56,7 @@ fn main() {
   wifi.sta_log_ip()
   wifi.sta_log_ip_info()
 
-  // SoftAP surface (do not mix with STA on hardware in one binary @v0.2.0).
+  // SoftAP surface (do not mix with STA on hardware in one binary).
   e = wifi.ap_init()
   if e != wifi.err_ok() {
     return

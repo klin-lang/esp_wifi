@@ -1,0 +1,65 @@
+/// ESP-IDF Wi‑Fi scan — thin Klin surface over `sta_idf.c` (same unit as STA).
+/// Requires `sta_init` first (STA mode). Results: fixed C table (`scan_max` = 16);
+/// SSID copied into a **caller** buffer via `scan_ssid`. No Klin heap.
+module esp_wifi
+
+@[cimport, codename("klin_wifi_scan_max")]
+fn klin_wifi_scan_max(): i32
+
+@[cimport, codename("klin_wifi_scan_start")]
+fn klin_wifi_scan_start(timeout_ms: i32): i32
+
+@[cimport, codename("klin_wifi_scan_count")]
+fn klin_wifi_scan_count(): i32
+
+@[cimport, codename("klin_wifi_scan_rssi")]
+fn klin_wifi_scan_rssi(index: i32): i32
+
+@[cimport, codename("klin_wifi_scan_channel")]
+fn klin_wifi_scan_channel(index: i32): i32
+
+@[cimport, codename("klin_wifi_scan_authmode")]
+fn klin_wifi_scan_authmode(index: i32): i32
+
+@[cimport, codename("klin_wifi_scan_ssid")]
+fn klin_wifi_scan_ssid(index: i32, out: *mut u8, max_len: i32): i32
+
+@[cimport, codename("klin_wifi_scan_log")]
+fn klin_wifi_scan_log()
+
+/// Max APs kept after `scan_start` (fixed in C).
+pub fn scan_max(): i32 {
+    return klin_wifi_scan_max()
+}
+
+/// Blocking scan; needs `sta_init`. `timeout_ms` for SCAN_DONE (`-1` = forever).
+pub fn scan_start(timeout_ms: i32): i32 {
+    return klin_wifi_scan_start(timeout_ms)
+}
+
+pub fn scan_count(): i32 {
+    return klin_wifi_scan_count()
+}
+
+pub fn scan_rssi(index: i32): i32 {
+    return klin_wifi_scan_rssi(index)
+}
+
+pub fn scan_channel(index: i32): i32 {
+    return klin_wifi_scan_channel(index)
+}
+
+/// IDF `wifi_auth_mode_t` as `i32` (0 = open, …).
+pub fn scan_authmode(index: i32): i32 {
+    return klin_wifi_scan_authmode(index)
+}
+
+/// Copy SSID into caller buffer (`max_len` includes space for NUL).
+/// Returns length written (excluding NUL), or IDF error as negative/`esp_err_t`.
+pub fn scan_ssid(index: i32, out: *mut u8, max_len: i32): i32 {
+    return klin_wifi_scan_ssid(index, out, max_len)
+}
+
+pub fn scan_log() {
+    klin_wifi_scan_log()
+}
