@@ -410,6 +410,76 @@ void klin_wifi_sta_log_ip_info(void)
     printf("klin_wifi: ip %s gw %s mask %s\n", ip, gw, mask);
 }
 
+static int klin_wifi_sta_fill_ap_info(wifi_ap_record_t *ap)
+{
+    if (!s_inited || !s_associated || ap == NULL) {
+        return (int)ESP_ERR_INVALID_STATE;
+    }
+    memset(ap, 0, sizeof(*ap));
+    return (int)esp_wifi_sta_get_ap_info(ap);
+}
+
+int klin_wifi_sta_rssi(void)
+{
+    wifi_ap_record_t ap;
+    if (klin_wifi_sta_fill_ap_info(&ap) != (int)ESP_OK) {
+        return 0;
+    }
+    return (int)ap.rssi;
+}
+
+int klin_wifi_sta_channel(void)
+{
+    wifi_ap_record_t ap;
+    if (klin_wifi_sta_fill_ap_info(&ap) != (int)ESP_OK) {
+        return 0;
+    }
+    return (int)ap.primary;
+}
+
+int klin_wifi_sta_authmode(void)
+{
+    wifi_ap_record_t ap;
+    if (klin_wifi_sta_fill_ap_info(&ap) != (int)ESP_OK) {
+        return 0;
+    }
+    return (int)ap.authmode;
+}
+
+int klin_wifi_sta_ap_ssid(char *out, int max_len)
+{
+    wifi_ap_record_t ap;
+    int n;
+    int err;
+
+    if (out == NULL || max_len <= 0) {
+        return (int)ESP_ERR_INVALID_ARG;
+    }
+    err = klin_wifi_sta_fill_ap_info(&ap);
+    if (err != (int)ESP_OK) {
+        out[0] = '\0';
+        return err;
+    }
+    n = (int)strlen((const char *)ap.ssid);
+    if (n >= max_len) {
+        n = max_len - 1;
+    }
+    memcpy(out, ap.ssid, (size_t)n);
+    out[n] = '\0';
+    return n;
+}
+
+void klin_wifi_sta_log_link(void)
+{
+    wifi_ap_record_t ap;
+    if (klin_wifi_sta_fill_ap_info(&ap) != (int)ESP_OK) {
+        printf("klin_wifi: link (not associated)\n");
+        return;
+    }
+    printf("klin_wifi: link rssi=%d ch=%u auth=%u ssid=%s\n", (int)ap.rssi,
+           (unsigned)ap.primary, (unsigned)ap.authmode, (const char *)ap.ssid);
+}
+
 int klin_wifi_scan_max(void)
 {
     return KLIN_WIFI_SCAN_MAX;

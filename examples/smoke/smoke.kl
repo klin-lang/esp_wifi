@@ -55,6 +55,13 @@ fn main() {
   }
   wifi.sta_log_ip()
   wifi.sta_log_ip_info()
+  // Link stats after assoc (W3).
+  let _lr = wifi.sta_rssi()
+  let _lch = wifi.sta_channel()
+  let _lam = wifi.sta_authmode()
+  let mut apssid: [33]u8
+  let _aln = wifi.sta_ap_ssid(cast(*mut u8, &apssid[0]), 33)
+  wifi.sta_log_link()
 
   // SoftAP surface (do not mix with STA on hardware in one binary).
   e = wifi.ap_init()

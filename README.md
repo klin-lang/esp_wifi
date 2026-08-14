@@ -1,7 +1,7 @@
 # esp_wifi
 
 Thin **ESP-IDF Wi‑Fi** bindings for [Klin](https://github.com/klin-lang/klin)
-(**STA** + **SoftAP** + **scan**).
+(**STA** + **SoftAP** + **scan** + **link stats**).
 
 The radio is in the **silicon**; this package does **not** belong in
 [`machine_esp`](https://github.com/klin-lang/machine_esp) (MMIO Pin…Adc+Rmt MVP).
@@ -20,7 +20,7 @@ Klin allocation.
 `ap_set_ip` is optional. **Do not** call `sta_*` and `ap_*` in the same binary
 on this tag (APSTA / dual → later under [104] N1).
 
-## Status (`@v0.3.0`)
+## Status (`@v0.4.0`)
 
 ### STA
 
@@ -34,6 +34,7 @@ on this tag (APSTA / dual → later under [104] N1).
 | `sta_ip_u32` / `sta_gateway_u32` / `sta_netmask_u32` | After GOT_IP |
 | `sta_disconnect` / `sta_stop` | Thin IDF calls |
 | `sta_log_ip` / `sta_log_ip_info` | Debug `printf` |
+| `sta_rssi` / `sta_channel` / `sta_authmode` / `sta_ap_ssid` / `sta_log_link` | After assoc (`esp_wifi_sta_get_ap_info`; each call → IDF) |
 
 ### SoftAP (W1)
 
@@ -57,10 +58,11 @@ on this tag (APSTA / dual → later under [104] N1).
 | `scan_rssi` / `scan_channel` / `scan_authmode` | Per-index fields |
 | `scan_log` | Debug `printf` of all rows |
 
-RSSI-after-assoc / BLE / sockets / HTTP / TLS / APSTA / dual Wi‑Fi+ETH → **out of
-scope** ([104](https://github.com/klin-lang/klin/blob/main/issues/104-later-tracks-esp-network.md)).
+RSSI-after-assoc is under STA above (W3). BLE / sockets / HTTP / TLS / APSTA /
+dual Wi‑Fi+ETH → **out of scope**
+([104](https://github.com/klin-lang/klin/blob/main/issues/104-later-tracks-esp-network.md)).
 
-`version()` → `4` (`@v0.3.0`).
+`version()` → `5` (`@v0.4.0`).
 
 ## Requirements
 
@@ -108,6 +110,7 @@ fn app() {
     return
   }
   wifi.sta_log_ip_info()
+  wifi.sta_log_link()
 }
 ```
 
@@ -157,7 +160,7 @@ fn app() {
 ```
 
 ```sh
-klin get github/klin-lang/esp_wifi@v0.3.0
+klin get github/klin-lang/esp_wifi@v0.4.0
 ```
 
 Local / in-repo:
@@ -189,9 +192,10 @@ Sibling: [`esp_eth`](https://github.com/klin-lang/esp_eth).
   goes into a **caller** buffer (`scan_ssid`).
 - SoftAP `max_connection` = **4** (fixed in `ap_idf.c`, documented).
 - Scan keeps at most **16** APs in a fixed C table (`scan_max`, documented).
+- STA link stats (`sta_rssi` …) call IDF each time (no Klin cache).
 - STA reconnect retry: max 5 in `sta_idf.c` (documented).
 - Errors are `i32` (`esp_err_t`); check them.
-- Post-assoc RSSI, LwIP sockets, TLS, APSTA: later / other packages.
+- LwIP sockets, TLS, APSTA: later / other packages.
 
 ## Changelog
 
@@ -201,6 +205,7 @@ Sibling: [`esp_eth`](https://github.com/klin-lang/esp_eth).
 | `@v0.1.1` | STA static IP / hostname / gw+mask / assoc wait |
 | `@v0.2.0` | SoftAP (`ap_*`) — [104] W1 |
 | `@v0.3.0` | Scan (`scan_*`) — [104] W2 |
+| `@v0.4.0` | STA link stats (`sta_rssi` …) — [104] W3 |
 
 ## Links
 

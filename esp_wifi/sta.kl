@@ -49,6 +49,21 @@ fn klin_wifi_sta_log_ip()
 @[cimport, codename("klin_wifi_sta_log_ip_info")]
 fn klin_wifi_sta_log_ip_info()
 
+@[cimport, codename("klin_wifi_sta_rssi")]
+fn klin_wifi_sta_rssi(): i32
+
+@[cimport, codename("klin_wifi_sta_channel")]
+fn klin_wifi_sta_channel(): i32
+
+@[cimport, codename("klin_wifi_sta_authmode")]
+fn klin_wifi_sta_authmode(): i32
+
+@[cimport, codename("klin_wifi_sta_ap_ssid")]
+fn klin_wifi_sta_ap_ssid(out: *mut u8, max_len: i32): i32
+
+@[cimport, codename("klin_wifi_sta_log_link")]
+fn klin_wifi_sta_log_link()
+
 /// `ESP_OK` (0).
 pub fn err_ok(): i32 {
     return 0
@@ -126,4 +141,29 @@ pub fn sta_log_ip() {
 /// Debug print of ip / gateway / netmask after `sta_wait_ip`.
 pub fn sta_log_ip_info() {
     klin_wifi_sta_log_ip_info()
+}
+
+/// Associated AP RSSI (dBm). Valid after `sta_connected`; else `0`. Each call → IDF.
+pub fn sta_rssi(): i32 {
+    return klin_wifi_sta_rssi()
+}
+
+/// Associated AP primary channel. Valid after `sta_connected`; else `0`.
+pub fn sta_channel(): i32 {
+    return klin_wifi_sta_channel()
+}
+
+/// Associated AP auth mode (`wifi_auth_mode_t` as `i32`). Else `0`.
+pub fn sta_authmode(): i32 {
+    return klin_wifi_sta_authmode()
+}
+
+/// Copy associated AP SSID into caller buffer. Returns length or `esp_err_t`.
+pub fn sta_ap_ssid(out: *mut u8, max_len: i32): i32 {
+    return klin_wifi_sta_ap_ssid(out, max_len)
+}
+
+/// Debug printf of rssi / channel / auth / ssid for the associated AP.
+pub fn sta_log_link() {
+    klin_wifi_sta_log_link()
 }

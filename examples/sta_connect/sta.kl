@@ -22,8 +22,10 @@ fn app_main_klin() {
     return
   }
   wifi.sta_log_ip_info()
-  // Keep the default IDF task alive.
+  wifi.sta_log_link()
+  // Keep the default IDF task alive; refresh link stats occasionally.
   while true {
+    let _r = wifi.sta_rssi()
     let mut i: i32 = 0
     while i < 20000000 {
       i = i + 1

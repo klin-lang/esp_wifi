@@ -37,6 +37,26 @@ int klin_wifi_sta_disconnect(void) { return 0; }
 int klin_wifi_sta_stop(void) { return 0; }
 void klin_wifi_sta_log_ip(void) {}
 void klin_wifi_sta_log_ip_info(void) {}
+int klin_wifi_sta_rssi(void) { return -42; }
+int klin_wifi_sta_channel(void) { return 6; }
+int klin_wifi_sta_authmode(void) { return 3; }
+int klin_wifi_sta_ap_ssid(char *out, int max_len)
+{
+    const char *s = "stub-assoc";
+    int n = 10;
+    if (out == NULL || max_len <= 0) {
+        return -1;
+    }
+    if (n >= max_len) {
+        n = max_len - 1;
+    }
+    for (int i = 0; i < n; i++) {
+        out[i] = (char)s[i];
+    }
+    out[n] = '\0';
+    return n;
+}
+void klin_wifi_sta_log_link(void) {}
 int klin_wifi_scan_max(void) { return 16; }
 int klin_wifi_scan_start(int timeout_ms)
 {

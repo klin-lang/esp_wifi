@@ -52,6 +52,24 @@ void klin_wifi_sta_log_ip(void);
 /** Print ip / gateway / netmask. */
 void klin_wifi_sta_log_ip_info(void);
 
+/**
+ * Link stats for the associated AP (`esp_wifi_sta_get_ap_info`).
+ * Call after `klin_wifi_sta_connected` / GOT_IP. Each call hits IDF (no cache).
+ * On failure (not assoc): rssi/channel/authmode return 0; ssid clears out.
+ */
+int klin_wifi_sta_rssi(void);
+int klin_wifi_sta_channel(void);
+int klin_wifi_sta_authmode(void);
+
+/**
+ * Copy associated AP SSID into caller buffer (NUL-terminated).
+ * Returns length written (excluding NUL), or esp_err_t on error.
+ */
+int klin_wifi_sta_ap_ssid(char *out, int max_len);
+
+/** Debug printf: rssi / channel / auth / ssid of associated AP. */
+void klin_wifi_sta_log_link(void);
+
 /** Max APs kept after `klin_wifi_scan_start` (fixed; documented). */
 int klin_wifi_scan_max(void);
 
